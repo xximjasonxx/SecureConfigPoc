@@ -1,16 +1,20 @@
 targetScope = 'resourceGroup'
 
 var location = 'eastus'
+var suffix = substring(uniqueString('/subscriptions/${subscription().id}/resourceGroups/rg-sandbox2'), 0, 6)
 
 // create the identity for the application
-resource idApplication 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-11-30' = {
-  name: 'id-pocapplication'
-  location: location
+module identity 'modules/identity.bicep' = {
+  name: 'identityDeploy'
+  params: {
+    name: 'id-pocapplication-${suffix}'
+    location: location
+  }
 }
 
-// create the key vault
+// key vault
 resource kv 'Microsoft.KeyVault/vaults@2021-06-01-preview' = {
-  name: 'kv-pocapplication2'
+  name: 'kv-pocapplication-${suffix}'
   location: location
   properties: {
     sku: {
@@ -19,7 +23,35 @@ resource kv 'Microsoft.KeyVault/vaults@2021-06-01-preview' = {
     }
     tenantId: tenant().tenantId
     accessPolicies: [
+      {
+        tenantId: tenant().tenantId
+        objectId: identity.outputs.principalId
+        permissions: {
+          secrets: [
+            'get'
+            'list'
+          ]
+        }
+      }
     ]
+  }
+}
+
+// add our sensitive value
+resource secret 'Microsoft.KeyVault/vaults/secrets@2021-06-01-preview' = {
+  name: 'sensitiveValue'
+  parent: kv
+  properties: {
+    value: 'thisisaaaaaaasecret'
+  }
+}
+
+// database
+module database 'modules/database.bicep' = {
+  name: 'databaseDeploy'
+  params: {
+    baseName: 'pocapplication-${suffix}'
+    location: location
   }
 }
 
@@ -27,58 +59,37 @@ resource kv 'Microsoft.KeyVault/vaults@2021-06-01-preview' = {
 module appConfig 'modules/app-config.bicep' = {
   name: 'appConfigDeploy'
   params: {
+    name: 'appconfig-pocapplication-${suffix}'
     location: location
     configValues: [
       {
         name: 'searchAddress'
         value: 'hhttps://www.bing.com'
+        contentType: 'text/plain'
+      }
+      {
+        name: 'sensitive-value'
+        contentType: 'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8'
+        value: '{ "uri": "${secret.properties.secretUri}" }'
       }
     ]
-    applicationIdentity: idApplication.properties.principalId
+    applicationIdentityPrincipalId: identity.outputs.principalId
   }
+
+  dependsOn: [
+    identity
+  ]
 }
 
-// create the application insights reference
-resource appi 'Microsoft.Insights/components@2020-02-02' = {
-  name: 'appi-pocapplication'
-  location: location
-  kind: 'web'
-  properties: {
-    Application_Type: 'web'
+module appService 'modules/appService.bicep' = {
+  name: 'appServiceDeploy'
+  params: {
+    baseName: 'pocapplication-${suffix}'
+    location: location
+    applicationIdentityResourceId: identity.outputs.resourceId
   }
-}
 
-// create the app service plan
-resource plan 'Microsoft.Web/serverfarms@2021-02-01' = {
-  name: 'plan-pocapplication'
-  location: location
-  sku: {
-    name: 'S1'
-    tier: 'Standard'
-    capacity: 1
-  }
-  kind: 'linux'
-  properties: {
-    reserved: true
-  }
-}
-
-// create the app service
-resource app 'Microsoft.Web/sites@2021-02-01' = {
-  name: 'app-pocapplication2'
-  location: location
-  identity: {
-    type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${idApplication.id}': {}     
-    }
-  }
-  properties: {
-    serverFarmId: plan.id
-    httpsOnly: false
-    siteConfig: {
-      linuxFxVersion: 'DOTNET|5.0'
-      alwaysOn: true
-    }
-  }
+  dependsOn: [
+    identity
+  ]
 }

@@ -1,11 +1,13 @@
 
+param name string
 param location string
 param configValues array
-param applicationIdentity string
+
+param applicationIdentityPrincipalId string
 
 // create the app configuration service
 resource appConfig 'Microsoft.AppConfiguration/configurationStores@2021-03-01-preview' = {
-  name: 'appconfig-pocapplication'
+  name: name
   location: location
   sku: {
     name: 'Standard'
@@ -23,8 +25,9 @@ resource keyValues 'Microsoft.AppConfiguration/configurationStores/keyValues@202
   parent: appConfig
   name: config.name
   properties: {
-    contentType: 'text/plain'
+    contentType: config.contentType
     value: config.value
+    
   }
 }]
 
@@ -34,6 +37,6 @@ resource roleAssignment 'Microsoft.Authorization/roleAssignments@2020-08-01-prev
   scope: appConfig
   properties: {
     roleDefinitionId: '/providers/Microsoft.Authorization/roleDefinitions/516239f1-63e1-4d78-a4de-a74fb236a071'
-    principalId: applicationIdentity 
+    principalId: applicationIdentityPrincipalId
   }
 }
