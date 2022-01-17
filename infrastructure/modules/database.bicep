@@ -53,7 +53,7 @@ resource fwAzureServiceAllow 'Microsoft.Sql/servers/firewallRules@2021-05-01-pre
     startIpAddress: '0.0.0.0'
     endIpAddress: '0.0.0.0'
   }
-}
+} 
 
 // outputs
 output serverFqdn string = dbServer.properties.fullyQualifiedDomainName

@@ -1,10 +1,10 @@
 targetScope = 'resourceGroup'
 
 param adminPrinicipalId string
+param adminPassword string
 
 var location = 'eastus'
 var suffix = substring(uniqueString('/subscriptions/${subscription().id}/resourceGroups/rg-sandbox2'), 0, 6)
-var adminPassword = 'TempPassword011!!X980'  // this is only for demonstration purposes
 
 // create the identity for the application
 module identity 'modules/identity.bicep' = {
