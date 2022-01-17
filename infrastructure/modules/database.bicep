@@ -45,6 +45,16 @@ resource administrator 'Microsoft.Sql/servers/administrators@2021-05-01-preview'
   }
 }
 
+// firewall allow azure services
+resource fwAzureServiceAllow 'Microsoft.Sql/servers/firewallRules@2021-05-01-preview' = {
+  name: 'allow-azure-services'
+  parent: dbServer
+  properties: {
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '0.0.0.0'
+  }
+}
+
 // outputs
 output serverFqdn string = dbServer.properties.fullyQualifiedDomainName
 output databaseName string = dbDatabase.name
