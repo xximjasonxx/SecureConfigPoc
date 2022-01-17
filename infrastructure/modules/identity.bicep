@@ -10,4 +10,5 @@ resource idApplication 'Microsoft.ManagedIdentity/userAssignedIdentities@2018-11
 
 // outputs
 output principalId string = idApplication.properties.principalId
+output clientId string = idApplication.properties.clientId
 output resourceId string = idApplication.id

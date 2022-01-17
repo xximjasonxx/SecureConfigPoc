@@ -2,6 +2,7 @@ targetScope = 'resourceGroup'
 
 var location = 'eastus'
 var suffix = substring(uniqueString('/subscriptions/${subscription().id}/resourceGroups/rg-sandbox2'), 0, 6)
+var adminPassword = 'TempPassword011!!X980'  // this is only for demonstration purposes
 
 // create the identity for the application
 module identity 'modules/identity.bicep' = {
@@ -9,6 +10,17 @@ module identity 'modules/identity.bicep' = {
   params: {
     name: 'id-pocapplication-${suffix}'
     location: location
+  }
+}
+
+// database
+module database 'modules/database.bicep' = {
+  name: 'databaseDeploy'
+  params: {
+    baseName: 'pocapplication-${suffix}'
+    location: location
+    administratorPrincipalId: 'f1a2c6f4-c875-4d5c-b25c-2cf5e9a6ad84'  
+    administratorPassword: adminPassword
   }
 }
 
@@ -46,12 +58,12 @@ resource secret 'Microsoft.KeyVault/vaults/secrets@2021-06-01-preview' = {
   }
 }
 
-// database
-module database 'modules/database.bicep' = {
-  name: 'databaseDeploy'
-  params: {
-    baseName: 'pocapplication-${suffix}'
-    location: location
+// add the db admin password for reference
+resource adminSecret 'Microsoft.KeyVault/vaults/secrets@2021-06-01-preview' = {
+  name: 'databaseAdminPassword'
+  parent: kv
+  properties: {
+    value: adminPassword
   }
 }
 
@@ -71,6 +83,11 @@ module appConfig 'modules/app-config.bicep' = {
         name: 'sensitive-value'
         contentType: 'application/vnd.microsoft.appconfig.keyvaultref+json;charset=utf-8'
         value: '{ "uri": "${secret.properties.secretUri}" }'
+      }
+      {
+        name: 'connection-string'
+        contentType: 'text/plain'
+        value: 'Server=tcp:${database.outputs.serverFqdn};Authentication=Active Directory Managed Identity; User Id=${identity.outputs.principalId}; Database=${database.outputs.databaseName};"'
       }
     ]
     applicationIdentityPrincipalId: identity.outputs.principalId

@@ -2,13 +2,16 @@
 param baseName string
 param location string
 
+param administratorPassword string
+param administratorPrincipalId string
+
 // server
 resource dbServer 'Microsoft.Sql/servers@2021-05-01-preview' = {
   name: 'sqlserver-${baseName}'
   location: location
   properties: {
     administratorLogin: 'azureuser'
-    administratorLoginPassword: 'TempPassword011!!X980'
+    administratorLoginPassword: administratorPassword 
   }
 }
 
@@ -29,3 +32,20 @@ resource dbDatabase 'Microsoft.Sql/servers/databases@2021-05-01-preview' = {
     capacity: 1
   }
 }
+
+// administrator
+resource administrator 'Microsoft.Sql/servers/administrators@2021-05-01-preview' = {
+  name: 'ActiveDirectory'
+  parent: dbServer
+  properties: {
+    administratorType: 'ActiveDirectory'
+    login: 'appuser'
+    sid: administratorPrincipalId
+    tenantId: tenant().tenantId
+  }
+}
+
+// outputs
+output serverFqdn string = dbServer.properties.fullyQualifiedDomainName
+output databaseName string = dbDatabase.name
+output databaseAdminLogin string = dbServer.properties.administratorLogin
